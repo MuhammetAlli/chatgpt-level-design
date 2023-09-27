@@ -173,7 +173,7 @@ public class LevelScriptable : SerializedScriptableObject
     #region Safe Regenerate
     public void SafeRegenerateCurrentLevel(int levelNum)
     {
-        int[,] currentLevelBlocks = ConvertTexturesToInts();
+        int[,] currentLevelBlocks = ConvertTexturesToInts(levelNum);
         List<float> blockDensities = new List<float>();
         float totalDensity = 0;
 
@@ -356,24 +356,37 @@ public class LevelScriptable : SerializedScriptableObject
     #region Dosya İşlemleri
     string baseSavePath = "Assets/Database/Levels";  // Kaydetmek istediğiniz klasör yolu
 
-    public int[,] ConvertTexturesToInts()
+    public int[,] ConvertTexturesToInts(int levelNum)
     {
-        int[,] blocksInts = new int[BLOCKS.GetLength(0), BLOCKS.GetLength(1)];
+        // Level numarasını kullanarak kaydedilmiş dosyayı bulma
+        string path = $"{baseSavePath}/Level_{levelNum}.dat";
 
-        for (int i = 0; i < BLOCKS.GetLength(0); i++)
+        // Dosyanın var olup olmadığını kontrol etme
+        if (!File.Exists(path))
         {
-            for (int j = 0; j < BLOCKS.GetLength(1); j++)
-            {
-                blocksInts[i, j] = TextureToInt(BLOCKS[i, j]);
-            }
+            Debug.LogError($"Level {levelNum} dosyası bulunamadı.");
+            return null;
+        }
+
+        // Dosyayı okuma ve veriyi deserializasyon
+        BinaryFormatter formatter = new BinaryFormatter();
+        FileStream stream = new FileStream(path, FileMode.Open);
+        int[,] blocksInts = formatter.Deserialize(stream) as int[,];
+        stream.Close();
+
+        if (blocksInts == null)
+        {
+            Debug.LogError($"Level {levelNum} verisi okunamadı ya da deserializasyon hatası.");
+            return null;
         }
 
         return blocksInts;
     }
 
+
     public void SaveLevelBlocks()
     {
-        int[,] blocksInts = ConvertTexturesToInts();
+        int[,] blocksInts = ConvertTexturesToInts(levelNumber);
 
         BinaryFormatter formatter = new BinaryFormatter();
         string path = $"{baseSavePath}/Level_{levelNumber}.dat";
