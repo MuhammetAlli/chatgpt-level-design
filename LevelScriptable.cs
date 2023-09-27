@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Sirenix.OdinInspector;
@@ -10,93 +9,94 @@ using System.Linq;
 [CreateAssetMenu(fileName = "Level", menuName = "ScriptableObjects/Level")]
 public class LevelScriptable : SerializedScriptableObject
 {
-    public int UniqueLevelCount = 50;
+    public int BenzersizSeviyeSayisi = 50;
 
-    [HorizontalGroup("Controls", 0.1f)]
+    #region SEVİYE KONTROLLERİ ( SeviyeAzalt , SeviyeNumarasiDegisti , SeviyeArttir )
+    [HorizontalGroup("Kontroller", 0.1f)]
     [Button("<", ButtonSizes.Small)]
-    public void DecreaseLevel()
+    public void SeviyeAzalt()
     {
-        levelNumber = Mathf.Max(1, levelNumber - 1);
-        OnLevelNumberChanged();
+        seviyeNumarasi = Mathf.Max(1, seviyeNumarasi - 1);
+        SeviyeNumarasiDegisti();
     }
 
-    [HorizontalGroup("Controls", 0.1f)]
-    [HideLabel]
-    [OnValueChanged("OnLevelNumberChanged")]
-    public int levelNumber = 1;
+    [HorizontalGroup("Kontroller", 0.1f)][HideLabel][OnValueChanged("SeviyeNumarasiDegisti")] public int seviyeNumarasi = 1;
 
-    private void OnLevelNumberChanged() { if (levelNumber > UniqueLevelCount) levelNumber = UniqueLevelCount; LoadLevelBlocks(); }
+    private void SeviyeNumarasiDegisti()
+    {
+        if (seviyeNumarasi > BenzersizSeviyeSayisi) seviyeNumarasi = BenzersizSeviyeSayisi;
+        BloklariYukle();
+    }
 
-    [HorizontalGroup("Controls", 0.1f)]
+    [HorizontalGroup("Kontroller", 0.1f)]
     [Button(">", ButtonSizes.Small)]
-    public void IncreaseLevel()
+    public void SeviyeArttir()
     {
-        levelNumber++;
-        if (levelNumber > UniqueLevelCount) levelNumber = UniqueLevelCount;
-        OnLevelNumberChanged();
+        seviyeNumarasi = Mathf.Min(BenzersizSeviyeSayisi, seviyeNumarasi + 1);
+        SeviyeNumarasiDegisti();
     }
+    #endregion
 
-    [TableMatrix(HorizontalTitle = "BLOCKS", SquareCells = true)]
-    // [TextureFolder("Assets/Database/Textures")]  // Bu yolu kendi texture'larınızın yoluna göre güncelleyin
-    public Texture2D[,] BLOCKS;
+
+    #region BLOK ( KaydetButton , BloklariBaslat , SeviyeOlustur )
+    [TableMatrix(HorizontalTitle = "BLOKLAR", SquareCells = true)]
+    public Texture2D[,] BLOKLAR;
+
     [Button("KAYDET", ButtonSizes.Medium)]
-    public void ManuallySaveLevelBlocks() { SaveLevelBlocks(); UpdateCurvesBasedOnLevel(); }
+    public void KaydetButton()
+    {
+        BloklariKaydet();
+        EgrilereGoreSeviyeGuncelle();
+    }
 
     [OnInspectorInit]
-    private void InitBlocks()
+    private void BloklariBaslat()
     {
-        if (BLOCKS == null || BLOCKS.GetLength(0) == 0 || BLOCKS.GetLength(1) == 0)
+        if (BLOKLAR == null || BLOKLAR.GetLength(0) == 0 || BLOKLAR.GetLength(1) == 0)
         {
-            BLOCKS = new Texture2D[5, 5];
+            BLOKLAR = new Texture2D[5, 5];
         }
     }
 
-    #region Kayıt
-    public TextureCollection textureCollection;
-
-    [InlineProperty]
-    public Dictionary<Block.BlockType, AnimationCurve> blockDensityCurves;
-
-
-    public void GenerateLevel(int levelNumber)
+    public void SeviyeOlustur()
     {
-        List<float> blockDensities = new List<float>();
-        float totalDensity = 0;
+        List<float> blokYogunluklari = new List<float>();
+        float toplamYogunluk = 0;
 
-        // BlockType ve AnimationCurve listelerini elde edelim
-        List<Block.BlockType> blockTypes = new List<Block.BlockType>(blockDensityCurves.Keys);
-        List<AnimationCurve> curves = new List<AnimationCurve>(blockDensityCurves.Values);
+        // BlokTipi ve AnimationCurve listelerini al
+        List<Block.BlockType> blokTipleri = new List<Block.BlockType>(blokYogunlukEgrileri.Keys);
+        List<AnimationCurve> egriler = new List<AnimationCurve>(blokYogunlukEgrileri.Values);
 
-        // Curve'lerden yoğunluk değerlerini al ve toplamını bul
-        for (int i = 0; i < curves.Count; i++)
+        // Eğrilerden yoğunluk değerlerini al ve toplamını bul
+        for (int i = 0; i < egriler.Count; i++)
         {
-            float density = curves[i].Evaluate((float)levelNumber / (float)UniqueLevelCount);
-            blockDensities.Add(density);
-            totalDensity += density;
-            Debug.Log($"Block Type {i}: Density = {density}, Total Density = {totalDensity}");
+            float yogunluk = egriler[i].Evaluate((float)seviyeNumarasi / (float)BenzersizSeviyeSayisi);
+            blokYogunluklari.Add(yogunluk);
+            toplamYogunluk += yogunluk;
+            //            Debug.Log($"Blok Tipi {i}: Yoğunluk = {yogunluk}, Toplam Yoğunluk = {toplamYogunluk}");
         }
 
         // Yoğunluk değerlerini normalize et
-        for (int i = 0; i < blockDensities.Count; i++)
+        for (int i = 0; i < blokYogunluklari.Count; i++)
         {
-            blockDensities[i] /= totalDensity;
+            blokYogunluklari[i] /= toplamYogunluk;
         }
 
         // Şimdi, her bir blok için normalize edilmiş yoğunluk değerlerini kullanarak matrise değer atama
-        for (int i = 0; i < BLOCKS.GetLength(0); i++)
+        for (int i = 0; i < BLOKLAR.GetLength(0); i++)
         {
-            for (int j = 0; j < BLOCKS.GetLength(1); j++)
+            for (int j = 0; j < BLOKLAR.GetLength(1); j++)
             {
-                float randValue = UnityEngine.Random.value;
-                float accumulatedDensity = 0;
+                float rastgeleDeger = UnityEngine.Random.value;
+                float birikmisYogunluk = 0;
 
-                for (int blockType = 0; blockType < blockDensities.Count; blockType++)
+                for (int blokTipi = 0; blokTipi < blokYogunluklari.Count; blokTipi++)
                 {
-                    accumulatedDensity += blockDensities[blockType];
+                    birikmisYogunluk += blokYogunluklari[blokTipi];
 
-                    if (randValue <= accumulatedDensity)
+                    if (rastgeleDeger <= birikmisYogunluk)
                     {
-                        BLOCKS[i, j] = IntToTexture(blockType);
+                        BLOKLAR[i, j] = IntToTexture(blokTipi);
                         break;
                     }
                 }
@@ -104,87 +104,21 @@ public class LevelScriptable : SerializedScriptableObject
         }
     }
 
-
-    Texture2D IntToTexture(int index) { /*Debug.Log("INT TO TEXTURE index: " + index);*/ return textureCollection.textures[index]; }
-    int TextureToInt(Texture2D texture) { return textureCollection.textures.IndexOf(texture); }
-    [Button("Regenerate Current Level", ButtonSizes.Medium)]
-    public void RegenerateCurrentLevel()
+    #region bos (safe regenerate için, şuan çalışmıyo)
+    public void SafeSeviyeOlustur()
     {
-        GenerateLevel(levelNumber);
-    }
-
-    [Button("Regenerate All Levels", ButtonSizes.Medium)]
-    public void RegenerateAllLevels() { for (int i = 1; i <= UniqueLevelCount; i++) { levelNumber = i; GenerateLevel(i); SaveLevelBlocks(); } }
-    [Button("SAFE Regenerate All Levels", ButtonSizes.Medium)]
-    public void SafeRegenerateAllLevels() { for (int i = 1; i <= UniqueLevelCount; i++) { SafeRegenerateCurrentLevel(i); SaveLevelBlocks(); } }
-
-
-    #region Leveldaki Değişikliğe Göre CURVE GÜNCELLEMESİ
-    public void UpdateCurvesBasedOnLevel()
-    {
-        Dictionary<int, float> blockRatios = CalculateBlockRatiosInCurrentLevel();
-
-        foreach (var pair in blockRatios)
-        {
-            int blockType = pair.Key;
-            float ratio = pair.Value;
-
-            // İlgili curve'ü al ve bu level için değerini güncelle
-            if (blockDensityCurves.ContainsKey((Block.BlockType)blockType))
-            {
-                blockDensityCurves[(Block.BlockType)blockType].AddKey((float)levelNumber / (float)UniqueLevelCount, ratio);
-            }
-        }
-    }
-
-    private Dictionary<int, float> CalculateBlockRatiosInCurrentLevel()
-    {
-        Dictionary<int, int> blockCounts = new Dictionary<int, int>();
-        int totalBlocks = 0;
-
-        for (int i = 0; i < BLOCKS.GetLength(0); i++)
-        {
-            for (int j = 0; j < BLOCKS.GetLength(1); j++)
-            {
-                int blockType = TextureToInt(BLOCKS[i, j]);
-
-                if (!blockCounts.ContainsKey(blockType))
-                {
-                    blockCounts[blockType] = 0;
-                }
-
-                blockCounts[blockType]++;
-                totalBlocks++;
-            }
-        }
-
-        Dictionary<int, float> blockRatios = new Dictionary<int, float>();
-
-        foreach (var pair in blockCounts)
-        {
-            blockRatios[pair.Key] = (float)pair.Value / totalBlocks;
-        }
-
-        return blockRatios;
-    }
-
-    #endregion
-
-    #region Safe Regenerate
-    public void SafeRegenerateCurrentLevel(int levelNum)
-    {
-        int[,] currentLevelBlocks = ConvertTexturesToInts(levelNum);
+        int[,] currentLevelBlocks = TextureToIntTablo();
         List<float> blockDensities = new List<float>();
         float totalDensity = 0;
 
         //   Debug.Log($"Level {levelNum}, Total Density Before: {totalDensity}");
 
-        List<Block.BlockType> blockTypes = new List<Block.BlockType>(blockDensityCurves.Keys);
-        List<AnimationCurve> curves = new List<AnimationCurve>(blockDensityCurves.Values);
+        List<Block.BlockType> blockTypes = new List<Block.BlockType>(blokYogunlukEgrileri.Keys);
+        List<AnimationCurve> curves = new List<AnimationCurve>(blokYogunlukEgrileri.Values);
 
         for (int i = 0; i < curves.Count; i++)
         {
-            float density = curves[i].Evaluate((float)levelNum / (float)UniqueLevelCount);
+            float density = curves[i].Evaluate((float)seviyeNumarasi / (float)BenzersizSeviyeSayisi);
             blockDensities.Add(density);
             totalDensity += density;
 
@@ -194,7 +128,7 @@ public class LevelScriptable : SerializedScriptableObject
         Dictionary<int, int> currentDistribution = GetCurrentBlockDistribution();
 
 
-        Dictionary<int, int> idealDistribution = CalculateIdealBlockDistribution(levelNum);
+        Dictionary<int, int> idealDistribution = CalculateIdealBlockDistribution();
 
 
         Dictionary<int, int> differences = new Dictionary<int, int>();
@@ -227,17 +161,44 @@ public class LevelScriptable : SerializedScriptableObject
         AdjustBlocksBasedOnDifferences(differences);
 
     }
+    private Dictionary<int, int> CalculateIdealBlockDistribution()
+    {
+        Dictionary<int, int> distribution = new Dictionary<int, int>();
 
+        List<float> blockDensities = new List<float>();
+        float totalDensity = 0;
 
+        // BlockType ve AnimationCurve listelerini elde edelim
+        List<Block.BlockType> blockTypes = new List<Block.BlockType>(blokYogunlukEgrileri.Keys);
+        List<AnimationCurve> curves = new List<AnimationCurve>(blokYogunlukEgrileri.Values);
+
+        // Curve'lerden yoğunluk değerlerini al ve toplamını bul
+        for (int i = 0; i < curves.Count; i++)
+        {
+            float density = curves[i].Evaluate((float)seviyeNumarasi / BenzersizSeviyeSayisi);
+            blockDensities.Add(density);
+            totalDensity += density;
+        }
+
+        int totalBlocks = BLOKLAR.GetLength(0) * BLOKLAR.GetLength(1);
+
+        for (int i = 0; i < blockDensities.Count; i++)
+        {
+            int idealCount = Mathf.RoundToInt(blockDensities[i] / totalDensity * totalBlocks);
+            distribution[i] = idealCount;
+        }
+
+        return distribution;
+    }
     private Dictionary<int, int> GetCurrentBlockDistribution()
     {
         Dictionary<int, int> distribution = new Dictionary<int, int>();
 
-        for (int i = 0; i < BLOCKS.GetLength(0); i++)
+        for (int i = 0; i < BLOKLAR.GetLength(0); i++)
         {
-            for (int j = 0; j < BLOCKS.GetLength(1); j++)
+            for (int j = 0; j < BLOKLAR.GetLength(1); j++)
             {
-                int blockType = TextureToInt(BLOCKS[i, j]);
+                int blockType = TextureToInt(BLOKLAR[i, j]);
 
                 if (distribution.ContainsKey(blockType))
                 {
@@ -252,46 +213,23 @@ public class LevelScriptable : SerializedScriptableObject
 
         return distribution;
     }
-
-
-    private Dictionary<int, int> CalculateIdealBlockDistribution(int levelNumber)
+    private string DictionaryToString(Dictionary<int, int> dictionary)
     {
-        Dictionary<int, int> distribution = new Dictionary<int, int>();
-
-        List<float> blockDensities = new List<float>();
-        float totalDensity = 0;
-
-        // BlockType ve AnimationCurve listelerini elde edelim
-        List<Block.BlockType> blockTypes = new List<Block.BlockType>(blockDensityCurves.Keys);
-        List<AnimationCurve> curves = new List<AnimationCurve>(blockDensityCurves.Values);
-
-        // Curve'lerden yoğunluk değerlerini al ve toplamını bul
-        for (int i = 0; i < curves.Count; i++)
+        List<string> items = new List<string>();
+        foreach (var pair in dictionary)
         {
-            float density = curves[i].Evaluate((float)levelNumber / 50); // 50 ile bölme, test etmek için total level sayısını temsil ediyor.
-            blockDensities.Add(density);
-            totalDensity += density;
+            string blockName = Enum.GetName(typeof(Block.BlockType), pair.Key); // Anahtar int değerini blok tipi ismine çevir
+            items.Add($"{blockName}: {pair.Value}");
         }
-
-        int totalBlocks = BLOCKS.GetLength(0) * BLOCKS.GetLength(1);
-
-        for (int i = 0; i < blockDensities.Count; i++)
-        {
-            int idealCount = Mathf.RoundToInt(blockDensities[i] / totalDensity * totalBlocks);
-            distribution[i] = idealCount;
-        }
-
-        return distribution;
+        return "{ " + string.Join(", ", items) + " }";
     }
-
-
     private void AdjustBlocksBasedOnDifferences(Dictionary<int, int> differences)
     {
-        for (int i = 0; i < BLOCKS.GetLength(0); i++)
+        for (int i = 0; i < BLOKLAR.GetLength(0); i++)
         {
-            for (int j = 0; j < BLOCKS.GetLength(1); j++)
+            for (int j = 0; j < BLOKLAR.GetLength(1); j++)
             {
-                int currentBlockType = TextureToInt(BLOCKS[i, j]);
+                int currentBlockType = TextureToInt(BLOKLAR[i, j]);
                 int idealBlockType = GetIdealBlockType(differences);  // Yeni bir fonksiyon ile ideal blok tipini döndürebiliriz
                 Debug.Log("IDEALBLOCKTYPE index: " + idealBlockType);
 
@@ -303,24 +241,13 @@ public class LevelScriptable : SerializedScriptableObject
 
                 if (currentBlockType != idealBlockType /*&& CanBeChanged(i, j)*/)  // CanBeChanged, bu bloğun değiştirilip değiştirilemeyeceğini kontrol eden başka bir fonksiyon olabilir
                 {
-                    BLOCKS[i, j] = IntToTexture(idealBlockType);
+                    BLOKLAR[i, j] = IntToTexture(idealBlockType);
                     differences[currentBlockType]--;
                     differences[idealBlockType]++;
                 }
             }
         }
     }
-    private string DictionaryToString(Dictionary<int, int> dictionary)
-    {
-        List<string> items = new List<string>();
-        foreach (var pair in dictionary)
-        {
-            string blockName = Enum.GetName(typeof(Block.BlockType), pair.Key); // Anahtar int değerini blok tipi ismine çevir
-            items.Add($"{blockName}: {pair.Value}");
-        }
-        return "{ " + string.Join(", ", items) + " }";
-    }
-
     private int GetIdealBlockType(Dictionary<int, int> differences)
     {
         if (differences == null || differences.Count == 0)
@@ -349,104 +276,189 @@ public class LevelScriptable : SerializedScriptableObject
 
         return idealBlockType;
     }
+    #endregion
 
+    Texture2D IntToTexture(int index) => texturKoleksiyonu.textures[index];
+    int TextureToInt(Texture2D texture) => texturKoleksiyonu.textures.IndexOf(texture);
 
     #endregion
 
-    #region Dosya İşlemleri
-    string baseSavePath = "Assets/Database/Levels";  // Kaydetmek istediğiniz klasör yolu
-
-    public int[,] ConvertTexturesToInts(int levelNum)
+    #region REGENERATE ( MevcutSeviyeyiRegenerate ,TumSeviyeleriRegenerate )
+    [Button("Mevcut Seviyeyi Yeniden Oluştur", ButtonSizes.Medium)]
+    public void MevcutSeviyeyiRegenerate()
     {
-        // Level numarasını kullanarak kaydedilmiş dosyayı bulma
-        string path = $"{baseSavePath}/Level_{levelNum}.dat";
-
-        // Dosyanın var olup olmadığını kontrol etme
-        if (!File.Exists(path))
-        {
-            Debug.LogError($"Level {levelNum} dosyası bulunamadı.");
-            return null;
-        }
-
-        // Dosyayı okuma ve veriyi deserializasyon
-        BinaryFormatter formatter = new BinaryFormatter();
-        FileStream stream = new FileStream(path, FileMode.Open);
-        int[,] blocksInts = formatter.Deserialize(stream) as int[,];
-        stream.Close();
-
-        if (blocksInts == null)
-        {
-            Debug.LogError($"Level {levelNum} verisi okunamadı ya da deserializasyon hatası.");
-            return null;
-        }
-
-        return blocksInts;
+        SeviyeOlustur();
     }
 
-
-    public void SaveLevelBlocks()
+    [Button("Tüm Seviyeleri Yeniden Oluştur", ButtonSizes.Medium)]
+    public void TumSeviyeleriRegenerate()
     {
-        int[,] blocksInts = ConvertTexturesToInts(levelNumber);
-
-        BinaryFormatter formatter = new BinaryFormatter();
-        string path = $"{baseSavePath}/Level_{levelNumber}.dat";
-        //    Debug.Log($"File Path: {path}"); if (File.Exists(path)) Debug.Log("File exists."); else Debug.Log("File does not exist.");
-
-
-        // Dizin kontrolü
-        string directoryPath = Path.GetDirectoryName(path);
-        if (!Directory.Exists(directoryPath))
+        for (int i = 1; i <= BenzersizSeviyeSayisi; i++)
         {
-            Directory.CreateDirectory(directoryPath);
+            seviyeNumarasi = i;
+            SeviyeOlustur();
+            BloklariKaydet();
+        }
+    }
+
+    /* 
+    [Button("SAFE Regenerate All Levels", ButtonSizes.Medium)]
+     public void SafeRegenerateAllLevels()
+     { for (int i = 1; i <= BenzersizSeviyeSayisi; i++) { seviyeNumarasi = i; BloklariYukle(); SafeSeviyeOlustur(); BloklariKaydet(); } }
+    */
+    #endregion
+
+    #region DOSYA ( TextureToIntTablo , BloklariKaydet , BloklariYukle )
+    string temelKayitYolu = "Assets/Database/Levels";  // Kayıt yapılacak temel klasör yolu
+
+    public int[,] TextureToIntTablo()
+    {
+        int[,] bloklarInt = new int[BLOKLAR.GetLength(0), BLOKLAR.GetLength(1)];
+
+        for (int i = 0; i < BLOKLAR.GetLength(0); i++)
+        {
+            for (int j = 0; j < BLOKLAR.GetLength(1); j++)
+            {
+                bloklarInt[i, j] = TextureToInt(BLOKLAR[i, j]);
+            }
         }
 
-        // Hata ayıklama
+        return bloklarInt;
+    }
+    /*
+        public int[,] KayitliIntTablosunuYukle(int seviyeNumarasi)
+        {
+                string yol = $"{temelKayitYolu}/Seviye_{seviyeNumarasi}.dat";
+
+                if (!File.Exists(yol))
+                {
+                    Debug.LogError($"{yol} dosyası bulunamadı.");
+                    return null;
+                }
+
+                BinaryFormatter formatter = new BinaryFormatter();
+                FileStream stream = new FileStream(yol, FileMode.Open);
+                int[,] bloklarInt = formatter.Deserialize(stream) as int[,];
+                stream.Close();
+
+                if (bloklarInt == null)
+                {
+                    Debug.LogError($"Seviye {seviyeNumarasi} verisi okunamadı veya deserializasyon hatası.");
+                    return null;
+                }
+
+                return bloklarInt;
+        }
+    */
+
+    public void BloklariKaydet()
+    {
+        int[,] bloklarInt = TextureToIntTablo();
+
+        BinaryFormatter formatter = new BinaryFormatter();
+        string yol = $"{temelKayitYolu}/Seviye_{seviyeNumarasi}.dat";
+
+        string dizinYolu = Path.GetDirectoryName(yol);
+        if (!Directory.Exists(dizinYolu))
+        {
+            Directory.CreateDirectory(dizinYolu);
+        }
+
         try
         {
-            FileStream stream = new FileStream(path, FileMode.Create);
-            formatter.Serialize(stream, blocksInts);
+            FileStream stream = new FileStream(yol, FileMode.Create);
+            formatter.Serialize(stream, bloklarInt);
             stream.Close();
         }
-        catch (Exception ex)
+        catch (Exception hata)
         {
-            Debug.LogError("Error while saving: " + ex.Message);
+            Debug.LogError("Kaydederken hata: " + hata.Message);
         }
     }
 
-
-
-    public void LoadLevelBlocks()
+    public void BloklariYukle()
     {
-        string path = $"{baseSavePath}/Level_{levelNumber}.dat";
-        Debug.Log($"File Path: {path}"); if (File.Exists(path)) Debug.Log("File exists."); else Debug.Log("File does not exist.");
+        string yol = $"{temelKayitYolu}/Seviye_{seviyeNumarasi}.dat";
 
-
-        if (File.Exists(path))
+        if (File.Exists(yol))
         {
             BinaryFormatter formatter = new BinaryFormatter();
-            FileStream stream = new FileStream(path, FileMode.Open);
+            FileStream stream = new FileStream(yol, FileMode.Open);
 
-            int[,] blocksInts = formatter.Deserialize(stream) as int[,];
+            int[,] bloklarInt = formatter.Deserialize(stream) as int[,];
             stream.Close();
 
-            // Convert int values back to Texture2D
-            for (int i = 0; i < blocksInts.GetLength(0); i++)
+            for (int i = 0; i < bloklarInt.GetLength(0); i++)
             {
-                for (int j = 0; j < blocksInts.GetLength(1); j++)
+                for (int j = 0; j < bloklarInt.GetLength(1); j++)
                 {
-                    BLOCKS[i, j] = IntToTexture(blocksInts[i, j]);
+                    BLOKLAR[i, j] = IntToTexture(bloklarInt[i, j]);
                 }
             }
         }
         else
         {
-            Debug.LogWarning("Save file not found for level " + levelNumber + ". Creating a new one.");
-            GenerateLevel(levelNumber);
-            SaveLevelBlocks();
-            LoadLevelBlocks();
+            Debug.LogWarning($"{seviyeNumarasi} numaralı seviye için kayıt dosyası bulunamadı. Yeni bir tane oluşturuluyor.");
+            SeviyeOlustur();
+            BloklariKaydet();
+            BloklariYukle();
+        }
+    }
+    #endregion
+
+
+    #region CURVE GÜNCELLEMELERİ ( EgrilereGoreSeviyeGuncelle , MevcutSeviyedeBlokOranlariniHesapla )
+    public TextureCollection texturKoleksiyonu;
+
+    [InlineProperty]
+    public Dictionary<Block.BlockType, AnimationCurve> blokYogunlukEgrileri;
+
+    public void EgrilereGoreSeviyeGuncelle()
+    {
+        Dictionary<int, float> blokOranlari = MevcutSeviyedeBlokOranlariniHesapla();
+
+        foreach (var pair in blokOranlari)
+        {
+            int blokTipi = pair.Key;
+            float oran = pair.Value;
+
+            // İlgili eğriyi al ve bu seviye için değerini güncelle
+            if (blokYogunlukEgrileri.ContainsKey((Block.BlockType)blokTipi))
+            {
+                blokYogunlukEgrileri[(Block.BlockType)blokTipi].AddKey((float)seviyeNumarasi / (float)BenzersizSeviyeSayisi, oran);
+            }
         }
     }
 
-    #endregion
+    private Dictionary<int, float> MevcutSeviyedeBlokOranlariniHesapla()
+    {
+        Dictionary<int, int> blokSayilari = new Dictionary<int, int>();
+        int toplamBloklar = 0;
+
+        for (int i = 0; i < BLOKLAR.GetLength(0); i++)
+        {
+            for (int j = 0; j < BLOKLAR.GetLength(1); j++)
+            {
+                int blokTipi = TextureToInt(BLOKLAR[i, j]);
+
+                if (!blokSayilari.ContainsKey(blokTipi))
+                {
+                    blokSayilari[blokTipi] = 0;
+                }
+
+                blokSayilari[blokTipi]++;
+                toplamBloklar++;
+            }
+        }
+
+        Dictionary<int, float> blokOranlari = new Dictionary<int, float>();
+
+        foreach (var pair in blokSayilari)
+        {
+            blokOranlari[pair.Key] = (float)pair.Value / toplamBloklar;
+        }
+
+        return blokOranlari;
+    }
     #endregion
 }
