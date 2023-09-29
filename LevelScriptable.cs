@@ -14,6 +14,10 @@ public class LevelScriptable : SerializedScriptableObject
 
     public InfList<int> BossLevels;
 
+    [Header("Satır Sayısı Eğrisi")]
+    public AnimationCurve satirSayisiEgrisi;
+
+
     #region SEVİYE KONTROLLERİ ( SeviyeAzalt , SeviyeNumarasiDegisti , SeviyeArttir )
     [HorizontalGroup("Kontroller", 0.1f)]
     [Button("<", ButtonSizes.Small)]
@@ -81,30 +85,28 @@ public class LevelScriptable : SerializedScriptableObject
             blokYogunluklari[i] /= toplamYogunluk;
         }
 
-        for (int i = 0; i < BLOKLAR.GetLength(1); i++)
-        {
-            for (int j = 0; j < BLOKLAR.GetLength(0); j++)
-            {
-                Block.BlockType currentBlockType = (Block.BlockType)TextureToInt(BLOKLAR[j, i]);
+        int satirSayisi = Mathf.CeilToInt(satirSayisiEgrisi.Evaluate((float)seviyeNumarasi / BenzersizSeviyeSayisi));
+        BLOKLAR = new Texture2D[satirSayisi, BLOKLAR.GetLength(1)];  // Satır sayısını güncelle
 
-                // İlk satır her zaman tahta
+        for (int i = 0; i < satirSayisi; i++)  // BLOKLAR.GetLength(0) yerine satirSayisi kullan
+        {
+            for (int j = 0; j < BLOKLAR.GetLength(1); j++)
+            {
                 if (i == 0)
                 {
-                    BLOKLAR[j, i] = IndisToTexture((int)Block.BlockType.Tahta);
+                    BLOKLAR[i, j] = IndisToTexture(0); // Tahta
                     continue;
                 }
 
-                // Son satır her zaman sandık
-                if (i == BLOKLAR.GetLength(1) - 1)
+                if (i == satirSayisi - 1)
                 {
-                    BLOKLAR[j, i] = IndisToTexture((int)Block.BlockType.Sandik);
+                    BLOKLAR[i, j] = IndisToTexture(3); // Sandık
                     continue;
                 }
 
-                // Eğer seviye numarası 5'in katıysa, sondan bir önceki satır tamamen boss
-                if (seviyeNumarasi % 5 == 0 && i == BLOKLAR.GetLength(1) - 2)
+                if (seviyeNumarasi % 5 == 0 && i == satirSayisi - 2)
                 {
-                    BLOKLAR[j, i] = IndisToTexture((int)Block.BlockType.Boss);
+                    BLOKLAR[i, j] = IndisToTexture(4); // Boss
                     continue;
                 }
 
@@ -113,21 +115,29 @@ public class LevelScriptable : SerializedScriptableObject
 
                 for (int blokTipi = 0; blokTipi < blokYogunluklari.Count; blokTipi++)
                 {
-                    // Sandık ve Boss için yoğunlukları atlama, Tahta dahil
-                    if (blokTipleri[blokTipi] == Block.BlockType.Sandik || blokTipleri[blokTipi] == Block.BlockType.Boss)
-                        continue;
+                    if (blokTipi == 0 || blokTipi == 3 || blokTipi == 4) continue;
 
                     toplananYogunluk += blokYogunluklari[blokTipi];
 
                     if (rastgeleDeger <= toplananYogunluk)
                     {
-                        BLOKLAR[j, i] = IndisToTexture(blokTipi);
+                        BLOKLAR[i, j] = IndisToTexture(blokTipi);
                         break;
                     }
                 }
             }
         }
     }
+
+
+
+    Texture2D EnumToTexture(Block.BlockType blokTipi)
+    {
+        // Enum değerine göre ilgili Texture2D'yi döndüren kodlarınızı buraya ekleyin.
+        // Örnek:
+        return texturKoleksiyonu.textures[(int)blokTipi];
+    }
+
 
     Texture2D IndisToTexture(int index)
     {
@@ -421,20 +431,20 @@ public class LevelScriptable : SerializedScriptableObject
             int[,] bloklarInt = formatter.Deserialize(stream) as int[,];
             stream.Close();
 
+            // BLOKLAR dizisini bloklarInt boyutuna göre yeniden tanımlıyoruz
+            BLOKLAR = new Texture2D[bloklarInt.GetLength(0), bloklarInt.GetLength(1)];
+
             for (int i = 0; i < bloklarInt.GetLength(0); i++)
             {
                 for (int j = 0; j < bloklarInt.GetLength(1); j++)
                 {
-                    BLOKLAR[i, j] = IntToTexture(bloklarInt[i, j]);
+                    BLOKLAR[i, j] = IndisToTexture(bloklarInt[i, j]);
                 }
             }
         }
         else
         {
-            Debug.LogWarning($"{seviyeNumarasi} numaralı seviye için kayıt dosyası bulunamadı. Yeni bir tane oluşturuluyor.");
-            SeviyeOlustur();
-            BloklariKaydet();
-            BloklariYukle();
+            Debug.LogError("Dosya bulunamadı: " + yol);
         }
     }
     #endregion
