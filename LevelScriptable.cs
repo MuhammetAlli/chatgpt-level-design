@@ -10,6 +10,9 @@ using System.Linq;
 public class LevelScriptable : SerializedScriptableObject
 {
     public int BenzersizSeviyeSayisi = 50;
+    public bool editordeBuSeviyeyiKullan;
+
+    public InfList<int> BossLevels;
 
     #region SEVİYE KONTROLLERİ ( SeviyeAzalt , SeviyeNumarasiDegisti , SeviyeArttir )
     [HorizontalGroup("Kontroller", 0.1f)]
@@ -22,7 +25,7 @@ public class LevelScriptable : SerializedScriptableObject
 
     [HorizontalGroup("Kontroller", 0.1f)][HideLabel][OnValueChanged("SeviyeNumarasiDegisti")] public int seviyeNumarasi = 1;
 
-    private void SeviyeNumarasiDegisti()
+    public void SeviyeNumarasiDegisti()
     {
         if (seviyeNumarasi > BenzersizSeviyeSayisi) seviyeNumarasi = BenzersizSeviyeSayisi;
         BloklariYukle();
@@ -63,46 +66,76 @@ public class LevelScriptable : SerializedScriptableObject
         List<float> blokYogunluklari = new List<float>();
         float toplamYogunluk = 0;
 
-        // BlokTipi ve AnimationCurve listelerini al
         List<Block.BlockType> blokTipleri = new List<Block.BlockType>(blokYogunlukEgrileri.Keys);
         List<AnimationCurve> egriler = new List<AnimationCurve>(blokYogunlukEgrileri.Values);
 
-        // Eğrilerden yoğunluk değerlerini al ve toplamını bul
         for (int i = 0; i < egriler.Count; i++)
         {
             float yogunluk = egriler[i].Evaluate((float)seviyeNumarasi / (float)BenzersizSeviyeSayisi);
             blokYogunluklari.Add(yogunluk);
             toplamYogunluk += yogunluk;
-            //            Debug.Log($"Blok Tipi {i}: Yoğunluk = {yogunluk}, Toplam Yoğunluk = {toplamYogunluk}");
         }
 
-        // Yoğunluk değerlerini normalize et
         for (int i = 0; i < blokYogunluklari.Count; i++)
         {
             blokYogunluklari[i] /= toplamYogunluk;
         }
 
-        // Şimdi, her bir blok için normalize edilmiş yoğunluk değerlerini kullanarak matrise değer atama
-        for (int i = 0; i < BLOKLAR.GetLength(0); i++)
+        for (int i = 0; i < BLOKLAR.GetLength(1); i++)
         {
-            for (int j = 0; j < BLOKLAR.GetLength(1); j++)
+            for (int j = 0; j < BLOKLAR.GetLength(0); j++)
             {
+                Block.BlockType currentBlockType = (Block.BlockType)TextureToInt(BLOKLAR[j, i]);
+
+                // İlk satır her zaman tahta
+                if (i == 0)
+                {
+                    BLOKLAR[j, i] = IndisToTexture((int)Block.BlockType.Tahta);
+                    continue;
+                }
+
+                // Son satır her zaman sandık
+                if (i == BLOKLAR.GetLength(1) - 1)
+                {
+                    BLOKLAR[j, i] = IndisToTexture((int)Block.BlockType.Sandik);
+                    continue;
+                }
+
+                // Eğer seviye numarası 5'in katıysa, sondan bir önceki satır tamamen boss
+                if (seviyeNumarasi % 5 == 0 && i == BLOKLAR.GetLength(1) - 2)
+                {
+                    BLOKLAR[j, i] = IndisToTexture((int)Block.BlockType.Boss);
+                    continue;
+                }
+
                 float rastgeleDeger = UnityEngine.Random.value;
-                float birikmisYogunluk = 0;
+                float toplananYogunluk = 0;
 
                 for (int blokTipi = 0; blokTipi < blokYogunluklari.Count; blokTipi++)
                 {
-                    birikmisYogunluk += blokYogunluklari[blokTipi];
+                    // Sandık ve Boss için yoğunlukları atlama, Tahta dahil
+                    if (blokTipleri[blokTipi] == Block.BlockType.Sandik || blokTipleri[blokTipi] == Block.BlockType.Boss)
+                        continue;
 
-                    if (rastgeleDeger <= birikmisYogunluk)
+                    toplananYogunluk += blokYogunluklari[blokTipi];
+
+                    if (rastgeleDeger <= toplananYogunluk)
                     {
-                        BLOKLAR[i, j] = IntToTexture(blokTipi);
+                        BLOKLAR[j, i] = IndisToTexture(blokTipi);
                         break;
                     }
                 }
             }
         }
     }
+
+    Texture2D IndisToTexture(int index)
+    {
+        return texturKoleksiyonu.textures[index];
+    }
+
+
+
 
     #region bos (safe regenerate için, şuan çalışmıyo)
     public void SafeSeviyeOlustur()
